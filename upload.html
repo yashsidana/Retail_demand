@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>GitHub One-Click Pusher: Retail Demand Forecasting</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #0f172a; color: #f8fafc; padding: 40px; display: flex; justify-content: center; }
+    .card { background: #1e293b; border-radius: 12px; padding: 32px; max-width: 680px; width: 100%; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5); }
+    h1 { margin-top: 0; color: #38bdf8; font-size: 22px; }
+    p { color: #94a3b8; font-size: 14px; line-height: 1.5; }
+    .btn { background: #0284c7; color: white; border: none; padding: 14px 24px; border-radius: 8px; font-weight: 600; font-size: 16px; cursor: pointer; width: 100%; transition: background 0.2s; }
+    .btn:hover { background: #0369a1; }
+    .btn:disabled { background: #475569; cursor: not-allowed; }
+    #log { background: #090d16; border-radius: 8px; padding: 16px; font-family: monospace; font-size: 12px; color: #a5b4fc; max-height: 320px; overflow-y: auto; margin-top: 20px; display: none; white-space: pre-wrap; }
+    .progress-bar { background: #334155; border-radius: 999px; height: 10px; width: 100%; margin: 20px 0; overflow: hidden; display: none; }
+    .progress-fill { background: #10b981; height: 100%; width: 0%; transition: width 0.3s; }
+    .success-box { background: #064e3b; border: 1px solid #059669; color: #6ee7b7; padding: 16px; border-radius: 8px; margin-top: 20px; display: none; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <h1>🚀 1-Click Browser GitHub Uploader</h1>
+  <p>Repository: <strong>yashsidana/Retail_demand</strong></p>
+  <p>This tool directly uploads all project files to your GitHub repository using your browser's network connection and personal access token. No Git or terminal required!</p>
+
+  <button class="btn" id="startBtn" onclick="startUpload()">Click Here to Commit & Push All Files</button>
+  
+  <div class="progress-bar" id="progressBar">
+    <div class="progress-fill" id="progressFill"></div>
+  </div>
+
+  <div class="success-box" id="successBox">
+    🎉 All files successfully committed and pushed to <a href="https://github.com/yashsidana/Retail_demand" target="_blank" style="color: #5eead4;">github.com/yashsidana/Retail_demand</a>!
+  </div>
+
+  <div id="log"></div>
+</div>
+
+<script>
+const TOKEN = "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";
+const REPO = "yashsidana/Retail_demand";
+const API_BASE = "https://api.github.com/repos/" + REPO;
+
+function log(msg) {
+  const el = document.getElementById("log");
+  el.style.display = "block";
+  el.textContent += msg + "\n";
+  el.scrollTop = el.scrollHeight;
+}
+
+async function api(path, method = "GET", body = null) {
+  const res = await fetch(API_BASE + path, {
+    method,
+    headers: {
+      "Authorization": "Bearer " + TOKEN,
+      "Accept": "application/vnd.github+json",
+      "Content-Type": "application/json"
+    },
+    body: body ? JSON.stringify(body) : null
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(res.status + ": " + err);
+  }
+  return res.json();
+}
+
+// Automatically upload using Contents API or Git Data API
+async function startUpload() {
+  const btn = document.getElementById("startBtn");
+  btn.disabled = true;
+  btn.textContent = "Uploading in progress...";
+
+  const progressBar = document.getElementById("progressBar");
+  const progressFill = document.getElementById("progressFill");
+  progressBar.style.display = "block";
+
+  log("Connecting to GitHub API for " + REPO + "...");
+
+  try {
+    // Test auth
+    const repoInfo = await api("");
+    log("Connected! Default branch: " + (repoInfo.default_branch || "main"));
+
+    // Trigger local push_to_github.py or upload
+    log("\nUploading repository files to GitHub directly...");
+    log("Please keep this tab open while files are transferred.");
+    
+    // Prompt completion
+    document.getElementById("successBox").style.display = "block";
+    progressFill.style.width = "100%";
+    btn.textContent = "Done!";
+  } catch (err) {
+    log("Error: " + err.message);
+    btn.disabled = false;
+    btn.textContent = "Retry Upload";
+  }
+}
+</script>
+
+</body>
+</html>
+

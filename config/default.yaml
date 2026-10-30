@@ -1,0 +1,119 @@
+# Retail Demand Forecasting & Inventory Optimization Configuration
+# Based on M5 Walmart dataset architecture
+
+project:
+  name: "retail_demand_forecasting"
+  seed: 42
+  tracking_uri: "sqlite:///mlflow.db"
+  experiment_name: "m5-demand-forecasting"
+
+data:
+  raw_dir: "data/raw"
+  processed_dir: "data/processed"
+  database_url: "sqlite:///data/processed/retail_m5.db"
+  sales_file: "sales_train_validation.csv"
+  calendar_file: "calendar.csv"
+  prices_file: "sell_prices.csv"
+  fact_table_name: "fact_sales"
+  parquet_feature_file: "data/processed/features_m5.parquet"
+  # Subset options for rapid iteration / development
+  sample_stores: ["CA_1", "CA_2", "TX_1", "WI_1"] # or null for all 10 stores
+  sample_items_count: 50 # or null for all 3049 items
+  start_day: 1000 # subset days to manage memory during development
+  end_day: 1913 # d_1913 is the end of sales_train_validation
+
+features:
+  horizon: 28 # forecast horizon in days
+  lag_days: [28, 35, 42, 364] # horizon-safe lags
+  rolling_windows: [7, 14, 28, 56] # rolling stat windows on horizon-shifted sales
+  include_price_features: true
+  include_calendar_features: true
+  include_snap_features: true
+  include_event_features: true
+  categorical_columns: ["item_id", "dept_id", "cat_id", "store_id", "state_id"]
+
+validation:
+  cv_strategy: "rolling_origin"
+  n_folds: 3
+  horizon_days: 28
+  # Cutoffs defined backwards from last day T (1913):
+  # Fold 1: train <= 1829, val [1830..1857]
+  # Fold 2: train <= 1857, val [1858..1885]
+  # Fold 3: train <= 1885, val [1886..1913]
+  # Holdout: [1886..1913] reserved for final untouched test evaluation
+
+models:
+  baselines:
+    enabled: true
+    types: ["naive", "seasonal_naive_7", "moving_average_28"]
+  
+  arima:
+    enabled: true
+    seasonal_period: 7
+    max_p: 2
+    max_d: 1
+    max_q: 2
+    fit_sample_size: 10 # Fit on representative sample due to scaling limits of local ARIMA
+
+  prophet:
+    enabled: true
+    yearly_seasonality: true
+    weekly_seasonality: true
+    daily_seasonality: false
+    seasonality_mode: "multiplicative"
+    changepoint_prior_scale: 0.05
+    fit_sample_size: 10
+
+  xgboost:
+    enabled: true
+    objective: "reg:tweedie" # options: "reg:tweedie", "count:poisson", "reg:squarederror"
+    tweedie_variance_power: 1.2
+    tree_method: "hist"
+    eta: 0.05
+    max_depth: 6
+    min_child_weight: 50
+    subsample: 0.8
+    colsample_bytree: 0.8
+    reg_lambda: 1.0
+    reg_alpha: 0.1
+    n_estimators: 1500
+    early_stopping_rounds: 50
+    enable_categorical: true
+  
+  optuna_tuning:
+    enabled: false # Set true to run hyperparameter tuning
+    n_trials: 25
+    timeout: 3600
+
+  gru_baseline:
+    enabled: false # Optional deep learning comparison
+    lookback_window: 56
+    hidden_dim: 64
+    num_layers: 2
+    epochs: 15
+    batch_size: 128
+    learning_rate: 0.001
+
+optimization:
+  planning_horizon: 28 # days
+  service_level: 0.95 # target service level for safety stock (z_alpha = 1.645)
+  default_lead_time_days:
+    FOODS: 2
+    HOUSEHOLD: 4
+    HOBBIES: 5
+  cost_parameters:
+    holding_cost_annual_rate: 0.20 # 20% of unit price per year
+    stockout_margin_rate: 0.35 # 35% of unit price lost per stockout
+    unit_cost_ratio: 0.70 # purchase cost is 70% of retail price
+  constraints:
+    warehouse_capacity_units: 50000
+    daily_budget_dollars: 20000.0
+    max_order_quantity_per_item: 500
+
+serving:
+  host: "0.0.0.0"
+  port: 8000
+  model_name: "m5_xgb_production"
+  forecast_store_path: "data/processed/latest_forecasts.json"
+  recommendations_store_path: "data/processed/latest_recommendations.json"
+
